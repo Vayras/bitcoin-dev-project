@@ -59,6 +59,8 @@ export function Navigation({
     const [completedTopics, setCompletedTopics] = useState<Set<string>>(
         new Set()
     )
+    const [manuallyCollapsedTopics, setManuallyCollapsedTopics] = useState<Set<string>>(new Set());
+
 
     // Define handleCompletionChange outside of useEffect hooks
     const handleCompletionChange = useCallback(() => {
@@ -208,29 +210,40 @@ export function Navigation({
             ...prev,
             [topicHref]: !prev[topicHref]
         }))
+        setManuallyCollapsedTopics((prev) => {
+            const newSet = new Set(prev)
+            if (newSet.has(topicHref)) {
+                newSet.delete(topicHref)
+            } else {
+                newSet.add(topicHref)
+            }
+            return newSet
+        })
     }, [])
 
     // Update expanded state when pathname changes
     useEffect(() => {
-        const newExpandedState: Record<string, boolean> = {}
+        const newExpandedState: Record<string, boolean> = { ...expandedTopics }
+    
         navigation.forEach((section) => {
             section.links.forEach((link) => {
-                if (
-                    link.children &&
-                    (link.href === pathname ||
-                        link.children.some((child) => child.href === pathname))
-                ) {
+                const isSelected =
+                    link.href === pathname ||
+                    link.children?.some((child) => child.href === pathname)
+    
+                if (isSelected && !manuallyCollapsedTopics.has(link.href)) {
                     newExpandedState[link.href] = true
                 }
             })
         })
+    
         setExpandedTopics((prev) => {
-            const updated = { ...prev, ...newExpandedState }
-            return JSON.stringify(updated) !== JSON.stringify(prev)
-                ? updated
+            return JSON.stringify(prev) !== JSON.stringify(newExpandedState)
+                ? newExpandedState
                 : prev
         })
-    }, [pathname, navigation])
+    }, [pathname, navigation, manuallyCollapsedTopics])
+    
 
     const getIcon = useCallback((iconName: string) => {
         const IconComponent =
